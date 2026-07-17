@@ -355,7 +355,9 @@ input:focus, select:focus, textarea:focus {
 }
 .item-tags { margin-top: 8px; }
 .item-updated { font-size: 11px; color: var(--text-dim); margin-top: 8px; }
-.item-actions { display: flex; gap: 6px; flex-shrink: 0; }
+.item-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; flex-shrink: 0; margin-left: auto; }
+.item-actions .quick-quantity { padding-inline: 8px; }
+.tool-state { display: inline-flex; align-items: center; gap: 7px; }
 
 .icon-btn {
   background: transparent; border: none; color: var(--text-muted);

@@ -35,17 +35,25 @@ export function setViewMode(page, mode) {
 
 /* ---------------- shared formatters ---------------- */
 
-/** Status badge (tool) or quantity line (material). Shared by both modes/pages. */
+/** Status and quantity display shared by both modes/pages. */
 export function statusOrQty(item) {
-  if (item.category === "tool") return statusBadge(item.status);
   const q = Number(item.quantity);
+  if (item.category === "tool") {
+    const total = item.totalQuantity == null ? NaN : Number(item.totalQuantity);
+    const available = Number.isFinite(q) ? q : 0;
+    const totalCount = Number.isFinite(total) ? total : available;
+    return el("span", { class: "tool-state" },
+      statusBadge(item.status),
+      el("span", { class: "qty-line" }, `${available}/${totalCount}`),
+    );
+  }
   const unit = item.unit || "";
   if (isOutOfStock(item)) {
-    return el("span", { class: "qty-line qty-out" }, `缺貨（0 ${unit}）`);
+    return el("span", { class: "qty-line qty-out" }, `缺貨（0${unit}）`);
   }
   const wrap = el("span", { class: "qty-line" },
     el("span", { class: "qty-num" }, Number.isFinite(q) ? `約 ${q}` : "—"),
-    ` ${unit}`,
+    unit,
   );
   if (isLowStock(item)) {
     wrap.classList.add("qty-low");
@@ -81,12 +89,22 @@ function applyDataAttrs(node, item) {
 /** Action buttons carry data-action; pages wire them via event delegation. */
 function actionButtons(item, ctx) {
   const wrap = el("div", { class: "item-actions" });
-  if (ctx.page === "search") {
-    wrap.appendChild(el("button", {
-      class: "btn btn-ghost btn-sm", type: "button", "data-action": "open",
-      "aria-label": `開啟 ${item.name} 的位置`,
-    }, "開啟位置"));
-  } else {
+  const quantity = Number(item.quantity);
+  const canDecrease = Number.isFinite(quantity) && quantity > 0;
+  const total = item.totalQuantity == null ? NaN : Number(item.totalQuantity);
+  const canIncrease = item.category !== "tool" || quantity < (Number.isFinite(total) ? total : quantity);
+  const decreaseLabel = item.category === "tool" ? "使用" : "取用";
+  const increaseLabel = item.category === "tool" ? "歸還" : "補充";
+  wrap.appendChild(el("button", {
+    class: "btn btn-ghost btn-sm quick-quantity", type: "button", "data-action": "quantity-decrease",
+    disabled: canDecrease ? null : "disabled", "aria-label": `${decreaseLabel}一個 ${item.name}`,
+  }, decreaseLabel));
+  wrap.appendChild(el("button", {
+    class: "btn btn-primary btn-sm quick-quantity", type: "button", "data-action": "quantity-increase",
+    disabled: canIncrease ? null : "disabled",
+    "aria-label": `${increaseLabel}一個 ${item.name}`,
+  }, increaseLabel));
+  if (ctx.page !== "search") {
     wrap.appendChild(el("button", {
       class: "icon-btn", type: "button", "data-action": "edit", title: "編輯",
       "aria-label": `編輯 ${item.name}`, html: icon("edit", { size: "15px" }),

@@ -1,10 +1,10 @@
 // js/pages/storage.js — cabinet detail page
 
-import { $, el, escapeHtml, icon, formatLocation, isLowStock, isOutOfStock } from "../utils/utils.js";
+import { $, el, escapeHtml, icon, formatLocation, isLowStock, isOutOfStock, inventoryCount, inUseToolCount } from "../utils/utils.js";
 import { initLabels, storageTypeLabel } from "../ui/labels.js";
 import {
   getAreaById, getStructureById, getItemsByStorageId,
-  getWorkshopMap, getStructures, deleteItem,
+  getWorkshopMap, getStructures, deleteItem, updateItem,
 } from "../services/data-service.js";
 import { buildLocationIndex, filterItems } from "../utils/search.js";
 import { renderStructure } from "../ui/storage-renderer.js";
@@ -128,12 +128,34 @@ function wireItemDelegation() {
     const id = wrap?.dataset.itemId;
     const item = state.items.find((i) => i.id === id);
     if (!item) return;
-    if (btn.dataset.action === "edit") {
+    if (btn.dataset.action === "quantity-decrease" || btn.dataset.action === "quantity-increase") {
+      handleQuantityAction(btn, item);
+    } else if (btn.dataset.action === "edit") {
       openItemForm({ item, onSaved: () => refreshItems() });
     } else if (btn.dataset.action === "delete") {
       handleDelete(item);
     }
   });
+}
+
+async function handleQuantityAction(btn, item) {
+  const delta = btn.dataset.action === "quantity-increase" ? 1 : -1;
+  const current = Math.max(0, Number(item.quantity) || 0);
+  const total = Math.max(0, Number(item.totalQuantity ?? item.quantity) || 0);
+  const quantity = item.category === "tool"
+    ? Math.min(total, Math.max(0, current + delta))
+    : Math.max(0, current + delta);
+  if (quantity === current) return;
+  btn.disabled = true;
+  try {
+    await updateItem(item.id, { quantity });
+    notify.success(`${item.category === "tool" ? (delta > 0 ? "已歸還" : "已使用") : (delta > 0 ? "已補充" : "已取用")}「${item.name}」`);
+    await refreshItems();
+  } catch (err) {
+    console.error(err);
+    notify.danger("數量更新失敗：" + firestoreErrorMessage(err));
+    btn.disabled = false;
+  }
 }
 
 async function refreshItems() {
@@ -155,13 +177,14 @@ function renderStats() {
   const items = state.items;
   const tools = items.filter((i) => i.category === "tool");
   const materials = items.filter((i) => i.category === "material");
-  const inUse = tools.filter((i) => i.status === "in-use").length;
+  const toolCount = tools.reduce((sum, item) => sum + inventoryCount(item), 0);
+  const inUse = tools.reduce((sum, item) => sum + inUseToolCount(item), 0);
   const low = materials.filter((i) => isLowStock(i) || isOutOfStock(i)).length;
 
   const tiles = [
-    { v: items.length, l: "物品總數" },
-    { v: tools.length, l: "工具" },
-    { v: materials.length, l: "材料" },
+    { v: toolCount + materials.length, l: "物品總數" },
+    { v: toolCount, l: "工具" },
+    { v: materials.length, l: "材料種類" },
     { v: inUse, l: "使用中" },
     { v: low, l: "低存量／缺貨" },
   ];

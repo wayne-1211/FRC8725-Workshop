@@ -1,6 +1,6 @@
 // js/map-renderer.js — renders the interactive floor-plan hotspots
 
-import { el, isLowStock } from "../utils/utils.js";
+import { el, isLowStock, inventoryCount, availableToolCount, inUseToolCount } from "../utils/utils.js";
 import { storageTypeLabel } from "./labels.js";
 
 /**
@@ -13,10 +13,10 @@ export function computeAreaStats(items) {
     const id = it.storageId;
     if (!stats.has(id)) stats.set(id, { total: 0, toolsAvailable: 0, toolsInUse: 0, lowStock: 0 });
     const s = stats.get(id);
-    s.total += 1;
+    s.total += inventoryCount(it);
     if (it.category === "tool") {
-      if (it.status === "available") s.toolsAvailable += 1;
-      if (it.status === "in-use") s.toolsInUse += 1;
+      s.toolsAvailable += availableToolCount(it);
+      s.toolsInUse += inUseToolCount(it);
     }
     if (isLowStock(it) || (it.category === "material" && Number(it.quantity) === 0)) s.lowStock += 1;
   }

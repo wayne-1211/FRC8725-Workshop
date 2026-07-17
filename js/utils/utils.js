@@ -114,6 +114,23 @@ export function isOutOfStock(item) {
   return item.category === "material" && Number(item.quantity) === 0;
 }
 
+/** Inventory count: tools are counted by total units; each material record is one kind. */
+export function inventoryCount(item) {
+  if (item.category !== "tool") return 1;
+  const total = Number(item.totalQuantity ?? item.quantity);
+  return Number.isFinite(total) ? Math.max(0, total) : 0;
+}
+
+export function availableToolCount(item) {
+  if (item.category !== "tool") return 0;
+  const available = Number(item.quantity);
+  return Number.isFinite(available) ? Math.max(0, Math.min(inventoryCount(item), available)) : 0;
+}
+
+export function inUseToolCount(item) {
+  return item.category === "tool" ? Math.max(0, inventoryCount(item) - availableToolCount(item)) : 0;
+}
+
 /** Build a human location string: "工具櫃 A → A2 抽屜". */
 export function formatLocation(storageName, sectionName) {
   const parts = [storageName, sectionName].filter(Boolean);

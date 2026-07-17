@@ -1,7 +1,7 @@
 // js/pages/home.js — floor-plan overview + global search
 
-import { $, el, escapeHtml, icon, isLowStock, isOutOfStock, debounce } from "../utils/utils.js";
-import { getItems, getWorkshopMap, getStructures, getSummaryStatsConfig } from "../services/data-service.js";
+import { $, el, escapeHtml, icon, isLowStock, isOutOfStock, debounce, inventoryCount, inUseToolCount } from "../utils/utils.js";
+import { getItems, getWorkshopMap, getStructures, getSummaryStatsConfig, updateItem } from "../services/data-service.js";
 import { buildLocationIndex, filterItems } from "../utils/search.js";
 import {
   computeAreaStats, renderHotspots, setSearchHighlight, clearSearchHighlight,
@@ -117,7 +117,8 @@ function renderSummary() {
   host.innerHTML = "";
   const grid = el("div", { class: "stat-grid" });
   for (const config of state.summaryStats.filter((entry) => entry.enabled !== false)) {
-    const value = items.filter((item) => matchesSummaryFilter(item, config.filter || {})).length;
+    const filter = config.filter || {};
+    const value = items.reduce((sum, item) => sum + summaryContribution(item, filter), 0);
     const color = validCssColor(config.color) ? config.color : "var(--text)";
     grid.appendChild(el("div", { class: "stat stat-configured", style: `--stat-color:${color}` },
       el("div", { class: "stat-val" }, String(value)),
@@ -125,6 +126,15 @@ function renderSummary() {
     ));
   }
   host.appendChild(grid);
+}
+
+function summaryContribution(item, filter) {
+  if (filter.category === "tool" && filter.status === "in-use") {
+    if (item.category !== "tool") return 0;
+    return inUseToolCount(item);
+  }
+  if (!matchesSummaryFilter(item, filter)) return 0;
+  return inventoryCount(item);
 }
 
 function matchesSummaryFilter(item, filter) {
@@ -230,12 +240,36 @@ function wireResultsDelegation() {
     return state.items.find((i) => i.id === wrap.dataset.itemId) || null;
   };
 
-  host.addEventListener("click", (e) => {
+  host.addEventListener("click", async (e) => {
     const item = itemFrom(e.target);
-    if (item) openLocation(item);
+    if (!item) return;
+    const btn = e.target.closest("[data-action]");
+    if (btn?.dataset.action === "quantity-decrease" || btn?.dataset.action === "quantity-increase") {
+      e.stopPropagation();
+      const delta = btn.dataset.action === "quantity-increase" ? 1 : -1;
+      const current = Math.max(0, Number(item.quantity) || 0);
+      const total = Math.max(0, Number(item.totalQuantity ?? item.quantity) || 0);
+      const quantity = item.category === "tool"
+        ? Math.min(total, Math.max(0, current + delta))
+        : Math.max(0, current + delta);
+      if (quantity === current) return;
+      btn.disabled = true;
+      try {
+        await updateItem(item.id, { quantity });
+        notify.success(`${item.category === "tool" ? (delta > 0 ? "已歸還" : "已使用") : (delta > 0 ? "已補充" : "已取用")}「${item.name}」`);
+        await refreshData();
+      } catch (err) {
+        console.error(err);
+        notify.danger("數量更新失敗：" + firestoreErrorMessage(err));
+        btn.disabled = false;
+      }
+      return;
+    }
+    if (!btn) openLocation(item);
   });
   host.addEventListener("keydown", (e) => {
     if (e.key !== "Enter" && e.key !== " ") return;
+    if (e.target.closest("[data-action]")) return;
     const wrap = e.target.closest("[data-item-id]");
     if (!wrap) return;
     e.preventDefault();

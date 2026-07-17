@@ -22,7 +22,7 @@ export async function openItemForm({ item = null, defaults = {}, onSaved } = {})
   const data = normalizeItem(item, defaults);
 
   const form = el("form", { class: "item-form", novalidate: "novalidate" });
-  form.innerHTML = buildFormHtml(areas, data);
+  form.innerHTML = buildFormHtml(areas, data, isEdit);
 
   // --- element refs ---
   const catInputs = form.querySelectorAll('input[name="category"]');
@@ -138,13 +138,15 @@ export async function openItemForm({ item = null, defaults = {}, onSaved } = {})
 /* ---------------- helpers ---------------- */
 
 function normalizeItem(item, defaults) {
+  const category = item?.category || "tool";
   return {
     name: item?.name || "",
-    category: item?.category || "tool",
+    category,
     storageId: item?.storageId || defaults.storageId || "",
     sectionId: item?.sectionId || defaults.sectionId || "",
     status: item?.status || "available",
-    quantity: item?.quantity ?? "",
+    quantity: item?.quantity ?? (category === "tool" ? 1 : ""),
+    totalQuantity: item?.totalQuantity ?? item?.quantity ?? (category === "tool" ? 1 : ""),
     quantityMode: item?.quantityMode || "approximate",
     unit: item?.unit || "個",
     minimumQuantity: item?.minimumQuantity ?? "",
@@ -154,7 +156,7 @@ function normalizeItem(item, defaults) {
   };
 }
 
-function buildFormHtml(areas, d) {
+function buildFormHtml(areas, d, isEdit) {
   const areaOpts = areas.map((a) =>
     `<option value="${escapeHtml(a.id)}" ${a.id === d.storageId ? "selected" : ""}>${escapeHtml(a.name)}</option>`
   ).join("");
@@ -200,9 +202,23 @@ function buildFormHtml(areas, d) {
     </div>
 
     <div id="tool-fields">
-      <div class="field">
-        <label for="f-status">工具狀態</label>
-        <select id="f-status" name="status">${statusOpts}</select>
+      <div class="form-row">
+        <div class="field">
+          <label for="f-status">工具狀態</label>
+          <select id="f-status" name="status">${statusOpts}</select>
+        </div>
+        ${isEdit ? `
+          <div class="field">
+            <label for="f-tool-qty">可用數量</label>
+            <input id="f-tool-qty" name="toolQuantity" type="number" min="0" step="1" value="${escapeHtml(d.quantity)}" placeholder="例如：1">
+            <div class="error-text" data-for="toolQuantity"></div>
+          </div>
+        ` : ""}
+        <div class="field">
+          <label for="f-tool-total">總數量</label>
+          <input id="f-tool-total" name="totalQuantity" type="number" min="0" step="1" value="${escapeHtml(d.totalQuantity)}" placeholder="例如：3">
+          <div class="error-text" data-for="totalQuantity"></div>
+        </div>
       </div>
     </div>
 
@@ -266,9 +282,13 @@ function collectPayload(form, tags) {
   };
   if (category === "tool") {
     payload.status = get("status") || "available";
-    payload.quantity = null;
+    const q = get("toolQuantity");
+    const total = get("totalQuantity");
+    payload.totalQuantity = total === "" ? 0 : Number(total);
+    payload.quantity = q === "" ? payload.totalQuantity : Number(q);
     payload.unit = null;
     payload.minimumQuantity = null;
+    payload.quantityMode = null;
   } else {
     payload.status = "available";
     const q = get("quantity");
@@ -285,8 +305,12 @@ function validate(p) {
   const errors = {};
   if (!p.name) errors.name = "請輸入名稱";
   if (!p.storageId) errors.storageId = "請選擇所屬櫃子";
-  if (p.category === "material") {
-    if (p.quantity != null && Number(p.quantity) < 0) errors.quantity = "數量不可為負數";
+  if (p.quantity != null && (!Number.isInteger(p.quantity) || Number(p.quantity) < 0)) {
+    errors[p.category === "tool" ? "toolQuantity" : "quantity"] = "數量必須是零或正整數";
+  }
+  if (p.category === "tool") {
+    if (!Number.isInteger(p.totalQuantity) || p.totalQuantity < 0) errors.totalQuantity = "總數量必須是零或正整數";
+    else if (p.quantity > p.totalQuantity) errors.toolQuantity = "可用數量不可大於總數量";
   }
   return errors;
 }
