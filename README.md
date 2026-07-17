@@ -4,7 +4,7 @@
 
 ## 登入
 
-1. 開啟網站首頁。
+1. 開啟網站首頁。 [FRC8725 Workshop](https://frc8725.github.io/FRC8725-Workshop)
 2. 按下「使用 Google 登入」。
 3. 選擇你的 Google 帳號。
 4. 系統會自動確認帳號權限。
