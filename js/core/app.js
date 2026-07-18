@@ -4,6 +4,7 @@ import { logoutUser } from "../services/auth-service.js";
 import { clearDataCache } from "../services/data-service.js";
 import { closeModal } from "../ui/modal.js";
 import { renderNavigation } from "./router.js";
+import { exitDemoMode } from "./demo-mode.js";
 
 let activeSession = null;
 let logoutHandler = null;
@@ -34,6 +35,22 @@ export function initChrome(session) {
   resetChrome();
   activeSession = session;
   renderNavigation();
+  document.getElementById("side-nav")?.classList.toggle("demo-mode", !!session.demo);
+  const brandText = document.querySelector(".brand-text");
+  if (brandText) {
+    let badge = brandText.querySelector(".demo-badge");
+    if (session.demo) {
+      if (!badge) {
+        badge = document.createElement("span");
+        badge.className = "demo-badge";
+        badge.textContent = "示範模式";
+        badge.title = "資料僅儲存在這台裝置的瀏覽器裡，不會影響真正的 Firebase 資料";
+        brandText.appendChild(badge);
+      }
+    } else {
+      badge?.remove();
+    }
+  }
   const accountHost = document.getElementById("account-host");
   if (!accountHost) return;
 
@@ -49,6 +66,7 @@ export function initChrome(session) {
   avatar.hidden = true;
   image._fallback = avatar;
   const displayName = session.profile?.displayName || session.user.displayName || "Google 使用者";
+  account.title = displayName;
   image.addEventListener("error", () => avatarFallback(image, displayName));
   if (!session.user.photoURL) avatarFallback(image, displayName);
 
@@ -66,11 +84,19 @@ export function initChrome(session) {
   const logoutButton = document.createElement("button");
   logoutButton.className = "btn btn-sm btn-ghost";
   logoutButton.type = "button";
-  logoutButton.textContent = "登出";
+  logoutButton.title = session.demo ? "離開示範模式" : "登出";
+  const logoutIcon = document.createElement("span");
+  logoutIcon.className = "btn-ico";
+  logoutIcon.innerHTML = '<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>';
+  const logoutLabel = document.createElement("span");
+  logoutLabel.className = "btn-label";
+  logoutLabel.textContent = session.demo ? "離開示範模式" : "登出";
+  logoutButton.append(logoutIcon, logoutLabel);
   logoutHandler = async () => {
     logoutButton.disabled = true;
     clearProtectedUi();
-    await logoutUser();
+    if (session.demo) exitDemoMode();
+    else await logoutUser();
   };
   logoutButton.addEventListener("click", logoutHandler, { once: true });
   account.append(image, avatar, details, logoutButton);

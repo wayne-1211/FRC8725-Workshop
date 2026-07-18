@@ -3,6 +3,10 @@ import { clearProtectedUi, initChrome, resetChrome } from "./app.js";
 import { submitPendingRequest } from "../services/user-service.js";
 import { mountLoginPage } from "../pages/login.js";
 import { startRouter, stopRouter } from "./router.js";
+import { initSidebarToggle } from "../ui/sidebar.js";
+import { isDemoMode, buildDemoSession } from "./demo-mode.js";
+
+initSidebarToggle();
 
 const outlet = document.getElementById("page-outlet");
 let authRevision = 0;
@@ -40,4 +44,10 @@ async function handleAuth(user) {
   }
 }
 
-observeAuthState(handleAuth).catch((error) => showLogin(null, false, error.message));
+if (isDemoMode()) {
+  const session = buildDemoSession();
+  initChrome(session);
+  startRouter(session);
+} else {
+  observeAuthState(handleAuth).catch((error) => showLogin(null, false, error.message));
+}
