@@ -122,6 +122,19 @@ img { max-width: 100%; }
 .brand-name { font-weight: 700; font-size: 15px; line-height: 1.2; }
 .brand-sub { font-size: 11px; color: var(--text-muted); }
 .brand-text { min-width: 0; overflow: hidden; white-space: nowrap; }
+.demo-badge {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--cffy-theme-warning-a0);
+  background: rgba(255, 188, 94, 0.14);
+  border: 1px solid rgba(255, 188, 94, 0.35);
+  white-space: nowrap;
+}
 
 .nav-link {
   display: flex;

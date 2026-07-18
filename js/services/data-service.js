@@ -1,7 +1,10 @@
-// Firestore-only data service. localStorage is used only by UI view preferences elsewhere.
+// Data service. Backed by Firestore normally; backed by localStorage when
+// ?demo=1 is active (see js/core/demo-mode.js and js/services/demo-service.js).
+// localStorage is otherwise used only by UI view preferences elsewhere.
 
 import { loadJSON } from "../utils/utils.js";
 import { getCurrentUser } from "./auth-service.js";
+import { isDemoMode } from "../core/demo-mode.js";
 
 const MAP_PATH = "config/workshop-map.json";
 const STRUCT_PATH = "config/storage-structures.json";
@@ -10,7 +13,11 @@ let fb = null;
 let memCache = null;
 let configCache = { map: null, structures: null, summaryStats: null };
 
-async function firebase() {
+async function backend() {
+  if (isDemoMode()) {
+    if (!fb) fb = await import("./demo-service.js");
+    return fb;
+  }
   if (!getCurrentUser()) throw Object.assign(new Error("登入狀態已失效，請重新登入。"), { code: "unauthenticated" });
   if (!fb) fb = await import("./firebase-service.js");
   return fb;
@@ -51,7 +58,7 @@ export async function getAreaById(areaId) {
 }
 
 export async function getItems() {
-  const svc = await firebase();
+  const svc = await backend();
   memCache = await svc.fbGetItems();
   return memCache;
 }
@@ -61,17 +68,17 @@ export async function getItemsByStorageId(storageId) {
 }
 
 export async function getItemById(itemId) {
-  return (await firebase()).fbGetItemById(itemId);
+  return (await backend()).fbGetItemById(itemId);
 }
 
 export async function createItem(itemData) {
-  const created = await (await firebase()).fbCreateItem(itemData);
+  const created = await (await backend()).fbCreateItem(itemData);
   if (memCache) memCache.push(created);
   return created;
 }
 
 export async function updateItem(itemId, updates) {
-  const result = await (await firebase()).fbUpdateItem(itemId, updates);
+  const result = await (await backend()).fbUpdateItem(itemId, updates);
   if (memCache) {
     const index = memCache.findIndex((item) => item.id === itemId);
     if (index >= 0) memCache[index] = { ...memCache[index], ...updates };
@@ -80,7 +87,7 @@ export async function updateItem(itemId, updates) {
 }
 
 export async function adjustItemQuantity(itemId, delta) {
-  const result = await (await firebase()).fbAdjustItemQuantity(itemId, delta);
+  const result = await (await backend()).fbAdjustItemQuantity(itemId, delta);
   if (memCache) {
     const index = memCache.findIndex((item) => item.id === itemId);
     if (index >= 0) memCache[index] = { ...memCache[index], quantity: result.quantity };
@@ -89,7 +96,7 @@ export async function adjustItemQuantity(itemId, delta) {
 }
 
 export async function deleteItem(itemId) {
-  await (await firebase()).fbDeleteItem(itemId);
+  await (await backend()).fbDeleteItem(itemId);
   if (memCache) memCache = memCache.filter((item) => item.id !== itemId);
   return true;
 }
