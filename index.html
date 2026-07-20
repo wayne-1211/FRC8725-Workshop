@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-Hant">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -12,25 +13,37 @@
   <link rel="stylesheet" href="css/storage.css">
   <link rel="stylesheet" href="css/auth.css">
   <link rel="stylesheet" href="css/users.css">
+  <link rel="stylesheet" href="css/ops.css">
 </head>
+
 <body>
   <div class="app">
     <nav class="side-nav" id="side-nav" aria-label="主導覽">
-      <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-label="收合側邊欄" aria-expanded="true" title="收合側邊欄">
-        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+      <button type="button" id="sidebar-toggle" class="sidebar-toggle" aria-label="收合側邊欄" aria-expanded="true"
+        title="收合側邊欄">
+        <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4"
+          stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
       </button>
       <div class="brand">
         <img class="brand-logo" src="images/icon.ico" alt="Team 8725 Misty Panther Logo">
-        <div class="brand-text"><div class="brand-name">Team 8725</div><div class="brand-sub">Misty Panther · Workshop</div></div>
+        <div class="brand-text">
+          <div class="brand-name">Team 8725</div>
+          <div class="brand-sub">Misty Panther · Workshop</div>
+        </div>
       </div>
       <div class="nav-group" id="primary-nav"></div>
       <div class="nav-spacer"></div>
       <div id="account-host"></div>
     </nav>
     <main class="main" id="page-outlet" aria-live="polite">
-      <div class="state-block"><div class="spinner"></div>正在確認登入狀態…</div>
+      <div class="state-block">
+        <div class="spinner"></div>正在確認登入狀態…
+      </div>
     </main>
   </div>
   <script type="module" src="js/core/main.js"></script>
 </body>
+
 </html>

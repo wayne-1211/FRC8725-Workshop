@@ -7,6 +7,7 @@ import {
   getWorkshopMap, getStructures, deleteItem, adjustItemQuantity,
 } from "../services/data-service.js";
 import { buildLocationIndex, filterItems } from "../utils/search.js";
+import { sortByName } from "../utils/item-logic.js";
 import { renderStructure } from "../ui/storage-renderer.js";
 import { getViewMode, setViewMode, renderViewSwitcher } from "../ui/item-view.js";
 import { openItemForm } from "../ui/item-form.js";
@@ -94,7 +95,7 @@ function renderHead() {
       <p class="storage-desc">${escapeHtml(area.description || `${area.name} 的存放內容。`)}</p>
     </div>
     <div class="storage-actions">
-      <button class="btn btn-primary" id="add-item-btn">＋ 新增物品</button>
+      <button class="btn btn-primary" id="add-item-btn"><span class="ico-svg" style="width:15px;height:15px;--icon-url:url('../images/icons/plus.svg')" aria-hidden="true"></span>新增物品</button>
     </div>
   `;
   host.querySelector("#back-home").addEventListener("click", () => navigate("home"));
@@ -202,7 +203,8 @@ function renderStats() {
 function renderGrid() {
   const host = document.getElementById("structure-host");
   if (!host) return;
-  const filtered = filterItems(state.items, state.query, state.index);
+  // 未指定其他排序時，各格內容一律依名稱升冪
+  const filtered = sortByName(filterItems(state.items, state.query, state.index));
 
   renderStructure({
     host,

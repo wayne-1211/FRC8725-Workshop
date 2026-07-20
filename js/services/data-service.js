@@ -1,16 +1,22 @@
 // Data service. Backed by Firestore normally; backed by localStorage when
 // ?demo=1 is active (see js/core/demo-mode.js and js/services/demo-service.js).
-// localStorage is otherwise used only by UI view preferences elsewhere.
+// Firestore inventory is cached per signed-in UID. At app startup we read one
+// lightweight version document; the full items collection is fetched only when
+// that version differs from the local snapshot.
 
 import { loadJSON } from "../utils/utils.js";
 import { getCurrentUser } from "./auth-service.js";
 import { isDemoMode } from "../core/demo-mode.js";
+import { debugLog } from "../core/debug-mode.js";
 
 const MAP_PATH = "config/workshop-map.json";
 const STRUCT_PATH = "config/storage-structures.json";
 const SUMMARY_PATH = "config/summary-stats.json";
 let fb = null;
 let memCache = null;
+let memCacheVersion = "";
+let memCacheValidatedAt = 0;
+const CACHE_REVALIDATE_MS = 5 * 60 * 1000;
 let configCache = { map: null, structures: null, summaryStats: null };
 
 async function backend() {
@@ -25,6 +31,82 @@ async function backend() {
 
 export function clearDataCache() {
   memCache = null;
+  memCacheVersion = "";
+  memCacheValidatedAt = 0;
+}
+
+function isRecentlyValidated(value) {
+  const ms = typeof value === "number" ? value : Date.parse(value || "");
+  return Number.isFinite(ms) && Date.now() - ms < CACHE_REVALIDATE_MS;
+}
+
+function logCacheRead(target, detail = "") {
+  debugLog(`[快取讀取] ${target}${detail ? `｜${detail}` : ""}`);
+}
+
+function itemCacheKey() {
+  const uid = getCurrentUser()?.uid;
+  return uid ? `workshop.firestore.items.v1.${uid}` : "";
+}
+
+function itemSegmentKey(storageId) {
+  const uid = getCurrentUser()?.uid;
+  return uid && storageId
+    ? `workshop.firestore.items-segment.v1.${uid}.${encodeURIComponent(storageId)}`
+    : "";
+}
+
+function readSegmentCache(storageId) {
+  const key = itemSegmentKey(storageId);
+  if (!key) return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return parsed && typeof parsed.version === "string" && parsed.version.length > 0 && Array.isArray(parsed.items) ? parsed : null;
+  } catch { return null; }
+}
+
+function writeSegmentCache(storageId, version, items) {
+  const key = itemSegmentKey(storageId);
+  if (!key || !version) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ version, items, validatedAt: new Date().toISOString() }));
+  } catch (error) { console.warn("無法儲存儲位分段快取。", error); }
+}
+
+function readItemCache() {
+  const key = itemCacheKey();
+  if (!key) return null;
+  try {
+    const parsed = JSON.parse(localStorage.getItem(key) || "null");
+    return parsed && typeof parsed.version === "string" && parsed.version.length > 0 && Array.isArray(parsed.items) ? parsed : null;
+  } catch { return null; }
+}
+
+function writeItemCache(version, items) {
+  const key = itemCacheKey();
+  if (!key || !version || !Array.isArray(items)) return;
+  try {
+    localStorage.setItem(key, JSON.stringify({ version, items, validatedAt: new Date().toISOString() }));
+  } catch (error) {
+    console.warn("無法儲存本機庫存快取。", error);
+  }
+}
+
+/** 作業交易改變庫存後，強制下一次 getItems 下載新版本。 */
+export function invalidateItemCache() {
+  memCache = null;
+  memCacheVersion = "";
+  memCacheValidatedAt = 0;
+  const key = itemCacheKey();
+  if (key) try { localStorage.removeItem(key); } catch { /* ignore */ }
+}
+
+async function persistCurrentItems(svc) {
+  if (isDemoMode() || !memCache) return;
+  const version = await svc.fbGetItemsVersion();
+  memCacheVersion = version;
+  memCacheValidatedAt = Date.now();
+  writeItemCache(version, memCache);
 }
 
 export async function getWorkshopMap() {
@@ -59,12 +141,94 @@ export async function getAreaById(areaId) {
 
 export async function getItems() {
   const svc = await backend();
+  if (isDemoMode()) {
+    memCache = await svc.fbGetItems();
+    logCacheRead("items", "Demo localStorage");
+    return memCache;
+  }
+  if (memCache && isRecentlyValidated(memCacheValidatedAt)) {
+    logCacheRead("items", "記憶體快取（5 分鐘內）");
+    return memCache;
+  }
+
+  const local = readItemCache();
+  if (local && isRecentlyValidated(local.validatedAt || local.cachedAt)) {
+    memCache = local.items;
+    memCacheVersion = local.version;
+    memCacheValidatedAt = Date.parse(local.validatedAt || local.cachedAt);
+    logCacheRead("items", "localStorage 快取（5 分鐘內）");
+    return memCache;
+  }
+  let remoteVersion;
+  try {
+    remoteVersion = await svc.fbGetItemsVersion();
+  } catch (error) {
+    // 無法確認版本就視為需要更新，不使用可能過期的本機快取。
+    console.warn("無法讀取庫存版本，改用完整資料更新。", error);
+    memCache = await svc.fbGetItems();
+    return memCache;
+  }
+  if (remoteVersion && local?.version === remoteVersion) {
+    memCache = local.items;
+    memCacheVersion = remoteVersion;
+    memCacheValidatedAt = Date.now();
+    writeItemCache(remoteVersion, memCache);
+    logCacheRead("items", "本機版本與 Firestore 相同");
+    return memCache;
+  }
+
+  // 舊專案尚無版本時先建立基準，再讀完整資料；避免讀完後才寫版本造成併發誤標。
+  if (!remoteVersion) remoteVersion = await svc.fbEnsureItemsVersion();
   memCache = await svc.fbGetItems();
+  memCacheVersion = remoteVersion;
+  memCacheValidatedAt = Date.now();
+  writeItemCache(memCacheVersion, memCache);
   return memCache;
 }
 
 export async function getItemsByStorageId(storageId) {
-  return (await getItems()).filter((item) => item.storageId === storageId);
+  const svc = await backend();
+  if (isDemoMode()) return (await svc.fbGetItems()).filter((item) => item.storageId === storageId);
+
+  const fullLocal = readItemCache();
+  const segment = readSegmentCache(storageId);
+  if (fullLocal && isRecentlyValidated(fullLocal.validatedAt || fullLocal.cachedAt)) {
+    logCacheRead(`items/${storageId}`, "完整 localStorage 快取（5 分鐘內）");
+    return fullLocal.items.filter((item) => item.storageId === storageId);
+  }
+  if (segment && isRecentlyValidated(segment.validatedAt || segment.cachedAt)) {
+    logCacheRead(`items/${storageId}`, "儲位分段快取（5 分鐘內）");
+    return segment.items;
+  }
+  let version = "";
+  try {
+    version = await svc.fbGetItemsVersion();
+  } catch (error) {
+    // 版本無法讀取時視為需要更新，直接重新查詢目前儲位。
+    console.warn("無法讀取儲位版本，重新下載目前儲位。", error);
+    return svc.fbGetItemsByStorageId(storageId);
+  }
+
+  if (memCache && memCacheVersion === version) {
+    memCacheValidatedAt = Date.now();
+    logCacheRead(`items/${storageId}`, "記憶體版本與 Firestore 相同");
+    return memCache.filter((item) => item.storageId === storageId);
+  }
+  if (fullLocal?.version === version) {
+    writeItemCache(version, fullLocal.items);
+    logCacheRead(`items/${storageId}`, "完整本機快取版本相同");
+    return fullLocal.items.filter((item) => item.storageId === storageId);
+  }
+  if (segment?.version === version) {
+    writeSegmentCache(storageId, version, segment.items);
+    logCacheRead(`items/${storageId}`, "儲位分段版本與 Firestore 相同");
+    return segment.items;
+  }
+
+  if (!version) version = await svc.fbEnsureItemsVersion();
+  const items = await svc.fbGetItemsByStorageId(storageId);
+  writeSegmentCache(storageId, version, items);
+  return items;
 }
 
 export async function getItemById(itemId) {
@@ -72,32 +236,40 @@ export async function getItemById(itemId) {
 }
 
 export async function createItem(itemData) {
-  const created = await (await backend()).fbCreateItem(itemData);
+  const svc = await backend();
+  const created = await svc.fbCreateItem(itemData);
   if (memCache) memCache.push(created);
+  await persistCurrentItems(svc);
   return created;
 }
 
 export async function updateItem(itemId, updates) {
-  const result = await (await backend()).fbUpdateItem(itemId, updates);
+  const svc = await backend();
+  const result = await svc.fbUpdateItem(itemId, updates);
   if (memCache) {
     const index = memCache.findIndex((item) => item.id === itemId);
     if (index >= 0) memCache[index] = { ...memCache[index], ...updates };
   }
+  await persistCurrentItems(svc);
   return result;
 }
 
 export async function adjustItemQuantity(itemId, delta) {
-  const result = await (await backend()).fbAdjustItemQuantity(itemId, delta);
+  const svc = await backend();
+  const result = await svc.fbAdjustItemQuantity(itemId, delta);
   if (memCache) {
     const index = memCache.findIndex((item) => item.id === itemId);
     if (index >= 0) memCache[index] = { ...memCache[index], quantity: result.quantity };
   }
+  await persistCurrentItems(svc);
   return result;
 }
 
 export async function deleteItem(itemId) {
-  await (await backend()).fbDeleteItem(itemId);
+  const svc = await backend();
+  await svc.fbDeleteItem(itemId);
   if (memCache) memCache = memCache.filter((item) => item.id !== itemId);
+  await persistCurrentItems(svc);
   return true;
 }
 

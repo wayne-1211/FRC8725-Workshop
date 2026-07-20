@@ -2,6 +2,7 @@
 
 import { logoutUser } from "../services/auth-service.js";
 import { clearDataCache } from "../services/data-service.js";
+import { setActiveActor } from "../services/actor.js";
 import { closeModal } from "../ui/modal.js";
 import { renderNavigation } from "./router.js";
 import { exitDemoMode } from "./demo-mode.js";
@@ -19,6 +20,7 @@ function avatarFallback(image, name) {
 
 export function clearProtectedUi() {
   clearDataCache();
+  setActiveActor(null);
   closeModal();
   document.getElementById("result-list")?.replaceChildren();
   document.getElementById("structure-host")?.replaceChildren();
@@ -34,6 +36,10 @@ export function resetChrome() {
 export function initChrome(session) {
   resetChrome();
   activeSession = session;
+  setActiveActor({
+    uid: session.user.uid,
+    name: session.profile?.displayName || session.user.displayName || session.user.email || "",
+  });
   renderNavigation();
   document.getElementById("side-nav")?.classList.toggle("demo-mode", !!session.demo);
   const brandText = document.querySelector(".brand-text");

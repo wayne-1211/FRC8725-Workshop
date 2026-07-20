@@ -7,6 +7,7 @@
 // 編輯/刪除/開啟操作（以 data-action 屬性搭配事件委派）、Hover 高亮所需的 data 屬性。
 
 import { el, icon, isLowStock, isOutOfStock, formatLocation, formatDateTime } from "../utils/utils.js";
+import { formatMaterialQuantity, isToolTakable } from "../utils/item-logic.js";
 import { statusBadge, categoryTag, tagChip } from "./labels.js";
 
 const PLACEHOLDER = "images/placeholder-item.svg";
@@ -52,8 +53,7 @@ export function statusOrQty(item) {
     return el("span", { class: "qty-line qty-out" }, `缺貨（0${unit}）`);
   }
   const wrap = el("span", { class: "qty-line" },
-    el("span", { class: "qty-num" }, Number.isFinite(q) ? `約 ${q}` : "—"),
-    unit,
+    el("span", { class: "qty-num" }, formatMaterialQuantity(item)),
   );
   if (isLowStock(item)) {
     wrap.classList.add("qty-low");
@@ -90,9 +90,11 @@ function applyDataAttrs(node, item) {
 function actionButtons(item, ctx) {
   const wrap = el("div", { class: "item-actions" });
   const quantity = Number(item.quantity);
-  const canDecrease = Number.isFinite(quantity) && quantity > 0;
+  const specialTool = item.category === "tool" && !isToolTakable(item);
+  const canDecrease = Number.isFinite(quantity) && quantity > 0 && !specialTool;
   const total = item.totalQuantity == null ? NaN : Number(item.totalQuantity);
-  const canIncrease = item.category !== "tool" || quantity < (Number.isFinite(total) ? total : quantity);
+  const canIncrease = !specialTool
+    && (item.category !== "tool" || quantity < (Number.isFinite(total) ? total : quantity));
   const decreaseLabel = item.category === "tool" ? "使用" : "取用";
   const increaseLabel = item.category === "tool" ? "歸還" : "補充";
   wrap.appendChild(el("button", {

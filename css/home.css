@@ -18,6 +18,54 @@
 .stat.danger .stat-val { color: var(--cffy-theme-danger-a0); }
 .stat-configured .stat-val { color: var(--stat-color, var(--text)); }
 
+/* 可點擊的摘要卡（滑鼠 + 鍵盤） */
+.stat-button {
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  width: 100%;
+  transition: border-color 0.12s ease, background 0.12s ease, transform 0.06s ease;
+}
+.stat-button:hover { border-color: var(--primary); }
+.stat-button:active { transform: scale(0.98); }
+.stat-button:focus-visible { outline: 2px solid var(--cffy-theme-info-a0); outline-offset: 2px; }
+.stat-button.is-active {
+  border-color: var(--primary);
+  background: rgba(198, 84, 61, 0.14);
+  box-shadow: 0 0 0 1px var(--primary) inset;
+}
+
+/* 搜尋結果排序列與啟用中的摘要篩選 */
+.result-sort-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+.result-sort-select {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  padding: 6px 9px;
+}
+.result-sort-row .btn { white-space: nowrap; }
+.sort-dir-button { width: 34px; min-width: 34px; padding-inline: 7px; justify-content: center; }
+
+.active-summary-chip {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--cffy-theme-primary-a40);
+  background: rgba(198, 84, 61, 0.12);
+  border: 1px solid rgba(198, 84, 61, 0.4);
+  border-radius: var(--radius-sm);
+  padding: 6px 10px;
+  margin-bottom: 10px;
+}
+
 /* ---------- Map ---------- */
 .map-panel {
   padding: 18px;

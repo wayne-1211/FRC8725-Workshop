@@ -5,6 +5,8 @@ import { icon as vectorIcon } from "../utils/utils.js";
 const ROUTES = {
   home: { fragment: "pages/home.html", module: "../pages/home.js", roles: ["member", "admin"], label: "平面圖總覽", icon: "map" },
   storage: { fragment: "pages/storage.html", module: "../pages/storage.js", roles: ["member", "admin"] },
+  ops: { fragment: "pages/ops.html", module: "../pages/ops.js", roles: ["member", "admin"], label: "作業", icon: "clipboard" },
+  logs: { fragment: "pages/logs.html", module: "../pages/logs.js", roles: ["admin"], label: "Log", icon: "history" },
   users: { fragment: "pages/users.html", module: "../pages/users.js", roles: ["admin"], label: "使用者", icon: "users" },
 };
 

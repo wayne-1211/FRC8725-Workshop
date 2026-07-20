@@ -1,4 +1,5 @@
 import { firestoreErrorMessage } from "../services/auth-service.js";
+import { compareNames } from "../utils/item-logic.js";
 import { confirmModal } from "../ui/modal.js";
 import { notify } from "../ui/notifications.js";
 import {
@@ -179,8 +180,8 @@ function renderList(hostId, users, renderer, countId, emptyMessage) {
 async function loadUsers() {
   try {
     state = await getManagedUsers();
-    state.pending.sort((a, b) => String(a.email).localeCompare(String(b.email)));
-    state.authorized.sort((a, b) => String(a.email).localeCompare(String(b.email)));
+    state.pending.sort((a, b) => compareNames(a.displayName || a.email, b.displayName || b.email));
+    state.authorized.sort((a, b) => compareNames(a.displayName || a.email, b.displayName || b.email));
     renderList("pending-users", state.pending, pendingCard, "pending-count", "目前沒有等待授權的帳號。");
     renderList("authorized-users", state.authorized, authorizedCard, "authorized-count", "目前沒有已授權使用者。");
   } catch (error) {

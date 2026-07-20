@@ -19,6 +19,7 @@ export function hexToRgba(hex, alpha = 1) {
 const ICON_NAMES = new Set([
   "map", "reset", "book", "search", "box", "alert",
   "info", "check", "x", "edit", "trash", "list", "users",
+  "clipboard", "history", "sort-asc", "sort-desc", "plus",
 ]);
 
 export function icon(name, { size = "1em", stroke = 2 } = {}) {

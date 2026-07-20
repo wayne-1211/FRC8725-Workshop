@@ -6,6 +6,7 @@
 import { getCurrentUser } from "./auth-service.js";
 import { getFirebaseDb } from "../core/firebase-client.js";
 import { isDemoMode } from "../core/demo-mode.js";
+import { debugLog } from "../core/debug-mode.js";
 
 const AUTHORIZED = "authorizedUsers";
 const PENDING = "pendingUsers";
@@ -16,6 +17,7 @@ function mapSnapshot(snapshot) {
 
 async function getCollection(db, sdk, collectionName) {
   try {
+    debugLog(`[Firestore 讀取] ${collectionName}｜使用者資料`);
     return await sdk.getDocs(sdk.collection(db, collectionName));
   } catch (error) {
     error.collectionName = collectionName;
@@ -35,6 +37,7 @@ export async function submitPendingRequest(user) {
   if (!user) throw Object.assign(new Error("尚未登入"), { code: "unauthenticated" });
   const { db, sdk } = await firestore();
   const reference = sdk.doc(db, PENDING, user.uid);
+  debugLog(`[Firestore 讀取] ${PENDING}/${user.uid}｜檢查申請狀態`);
   const existing = await sdk.getDoc(reference);
   const profile = {
     email: user.email || "",
@@ -46,6 +49,29 @@ export async function submitPendingRequest(user) {
     await sdk.updateDoc(reference, profile);
   } else {
     await sdk.setDoc(reference, { ...profile, requestedAt: sdk.serverTimestamp() });
+  }
+}
+
+/**
+ * 供「作業」頁選擇盒子使用者的候選清單（member 也可讀取；
+ * firestore.rules v4 已開放 authorizedUsers 給所有已授權使用者讀取）。
+ * 讀取失敗（例如舊版 rules 尚未更新）時回傳空陣列 —— 仍可自行輸入名字，
+ * 不會擋住建立盒子。
+ */
+export async function getAuthorizedUserOptions() {
+  try {
+    if (isDemoMode()) {
+      const { authorized } = await (await import("./demo-service.js")).demoGetManagedUsers();
+      return authorized.map(({ uid, displayName, email }) => ({ uid, displayName: displayName || email || uid }));
+    }
+    const { db, sdk } = await firestore();
+    const snapshot = await getCollection(db, sdk, AUTHORIZED);
+    return mapSnapshot(snapshot)
+      .filter((user) => user.enabled !== false)
+      .map(({ uid, displayName, email }) => ({ uid, displayName: displayName || email || uid }));
+  } catch (error) {
+    console.warn("無法載入使用者候選名單（可自行輸入名字）。", error);
+    return [];
   }
 }
 

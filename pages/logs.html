@@ -1,0 +1,52 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">Log</h1>
+    <p class="page-sub">取用與歸還的紀錄</p>
+  </div>
+  <div class="page-head-actions"><button class="btn btn-ghost" id="refresh-logs" type="button">重新整理</button><button
+      class="btn btn-danger" id="clear-logs" type="button">清空 Log</button></div>
+</div>
+<div class="card log-filters" aria-label="Log 篩選">
+  <div class="log-filter-grid">
+    <div class="field"><label for="log-search">關鍵字</label><input id="log-search" type="search"
+        placeholder="人名、品項、盒子、備料單…" autocomplete="off"></div>
+    <div class="field"><label for="log-action">動作</label><select id="log-action">
+        <option value="">全部</option>
+        <option value="take">取用</option>
+        <option value="return">歸還</option>
+      </select></div>
+    <div class="field"><label for="log-source">來源</label><select id="log-source">
+        <option value="">全部</option>
+        <option value="box">盒子</option>
+        <option value="prep">備料單</option>
+        <option value="direct">快速操作</option>
+      </select></div>
+    <div class="field"><label for="log-category">品項類型</label><select id="log-category">
+        <option value="">全部</option>
+        <option value="tool">工具</option>
+        <option value="material">材料</option>
+      </select></div>
+    <div class="field"><label for="log-from">起始日期</label><input id="log-from" type="date"></div>
+    <div class="field"><label for="log-to">結束日期</label><input id="log-to" type="date"></div>
+    <div class="field"><label for="log-sort">排序欄位</label><select id="log-sort">
+        <option value="at">時間</option>
+        <option value="itemName">品項名稱</option>
+        <option value="userName">使用者</option>
+        <option value="quantity">數量</option>
+      </select></div>
+    <div class="field"><label for="log-dir">排序方向</label><select id="log-dir">
+        <option value="desc">新→舊／大→小</option>
+        <option value="asc">舊→新／小→大</option>
+      </select></div>
+  </div>
+</div>
+<div class="card">
+  <div class="results-header">
+    <h3 class="card-title">紀錄 <span class="result-count" id="log-count">0</span></h3>
+  </div>
+  <div id="log-list" class="log-list">
+    <div class="state-block">
+      <div class="spinner"></div>載入紀錄…
+    </div>
+  </div>
+</div>

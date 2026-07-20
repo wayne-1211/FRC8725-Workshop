@@ -3,7 +3,7 @@
 // 物品卡片/列表的實際渲染共用 js/item-view.js；此檔只負責產生櫃子的
 // 物理結構 Grid，並把每個 section 內的物品交給共用 renderer。
 
-import { el } from "../utils/utils.js";
+import { el, icon } from "../utils/utils.js";
 import { renderItem } from "./item-view.js";
 
 const SECTION_TYPE_LABELS = {
@@ -60,7 +60,7 @@ export function renderStructure({ host, structure, items, viewMode, ctx, onAdd }
       class: "btn btn-ghost btn-sm",
       style: "margin-top:10px; align-self:flex-start;",
       onclick: () => onAdd(sec.id),
-    }, "＋ 新增至此");
+    }, el("span", { html: icon("plus", { size: "14px" }) }), "新增至此");
     cell.appendChild(addBtn);
 
     grid.appendChild(cell);
