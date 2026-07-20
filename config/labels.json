@@ -21,7 +21,6 @@
     { "name": "top-surface","label": "頂部置物面" }
   ],
   "tags": [
-    { "name": "常用",     "color": "#c6543d", "label": "常用" },
-    { "name": "軟體", "color": "#87d1ff", "label": "軟體" }
+    { "name": "有財產標籤", "color": "#87d1ff", "label": "有財產標籤" }
   ]
 }
