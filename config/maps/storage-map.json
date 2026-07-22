@@ -11,7 +11,7 @@
       "width": 10.0,
       "height": 18.57,
       "rotation": 0,
-      "structureId": "shelf-2"
+      "structureId": "shelf-6"
     },
     {
       "id": "cabinet-32-33",
@@ -25,15 +25,15 @@
       "structureId": "mat-shelf-32-33"
     },
     {
-      "id": "cabinet-34",
-      "name": "櫃 34",
-      "type": "cabinet",
+      "id": "floor-34",
+      "name": "地面 (窗台)",
+      "type": "floor",
       "x": 3.66,
       "y": 78.3,
       "width": 92.93,
       "height": 18.79,
       "rotation": 0,
-      "structureId": "shelf-2"
+      "structureId": "single"
     },
     {
       "id": "cabinet-35",
@@ -44,18 +44,18 @@
       "width": 9.76,
       "height": 18.57,
       "rotation": 0,
-      "structureId": "shelf-2"
+      "structureId": "shelf-5"
     },
     {
-      "id": "cabinet-36",
-      "name": "櫃 36",
-      "type": "cabinet",
+      "id": "floor-36",
+      "name": "地面 (裡面一點)",
+      "type": "floor",
       "x": 3.66,
       "y": 3.58,
       "width": 9.76,
       "height": 55.93,
       "rotation": 0,
-      "structureId": "shelf-2"
+      "structureId": "single"
     },
     {
       "id": "plasma-table",

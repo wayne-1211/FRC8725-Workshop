@@ -21,7 +21,8 @@
     { "name": "top-surface", "label": "頂部置物面" },
     { "name": "hook",        "label": "掛勾" },
     { "name": "bin-row",     "label": "列" },
-    { "name": "area",        "label": "區域" }
+    { "name": "area",        "label": "區域" },
+    { "name": "floor",       "label": "地面" }
   ],
   "tags": [
     { "name": "有財產標籤", "color": "#87d1ff", "label": "有財產標籤" }
