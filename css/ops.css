@@ -207,13 +207,17 @@
 }
 
 /* ---------- 取用／備料 modal ---------- */
+.take-modal { --take-picker-height: min(46vh, 380px); }
 .take-candidates {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  max-height: 220px;
+  height: var(--take-picker-height);
+  min-height: var(--take-picker-height);
+  max-height: var(--take-picker-height);
   overflow-y: auto;
   overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 .take-candidates[hidden] { display: none; }
 .take-candidate {
@@ -245,8 +249,6 @@
   color: var(--cffy-theme-success-a0);
   background: rgba(125, 255, 149, 0.14); border-radius: 999px; padding: 2px 8px;
 }
-.take-candidates { max-height: 240px; overflow-y: auto; scrollbar-gutter: stable; }
-
 /* 固定取用視窗的外框高度，切換候選清單與相機時只捲動內容，不改變 modal 尺寸。 */
 .take-items-modal {
   height: min(830px, calc(100vh - 40px));
@@ -279,6 +281,9 @@
 .take-scan-btn.is-active .scan-ico-off { display: inline-flex; }
 .take-scan-region {
   position: relative;
+  height: var(--take-picker-height);
+  min-height: var(--take-picker-height);
+  max-height: var(--take-picker-height);
   margin-bottom: 12px;
   border: 1px solid var(--border-soft);
   border-radius: var(--radius);
@@ -286,7 +291,7 @@
   background: #000;
 }
 .take-scan-region video {
-  display: block; width: 100%; max-height: 46vh;
+  display: block; width: 100%; height: 100%;
   object-fit: cover; background: #000;
 }
 .take-scan-region::after {

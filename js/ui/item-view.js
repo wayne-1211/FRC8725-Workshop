@@ -63,6 +63,12 @@ function actionButtons(item, ctx) {
     }, "補充"));
   }
   if (ctx.page !== "search") {
+    if (ctx.debug) {
+      wrap.appendChild(el("button", {
+        class: "icon-btn", type: "button", "data-action": "export-dm", title: "輸出 Data Matrix",
+        "aria-label": `輸出 ${item.name} 的 Data Matrix`, html: icon("clipboard", { size: "15px" }),
+      }));
+    }
     wrap.appendChild(el("button", {
       class: "icon-btn", type: "button", "data-action": "edit", title: "編輯",
       "aria-label": `編輯 ${item.name}`, html: icon("edit", { size: "15px" }),

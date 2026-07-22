@@ -1,23 +1,6 @@
 // js/ui/sidebar.js — collapsible sidebar (Claude-style rail), independent of auth/router state.
 
-const STORAGE_KEY = "workshop.sidebarCollapsed";
 const MOBILE_QUERY = "(max-width: 768px)";
-
-function readStoredPreference() {
-  try {
-    return localStorage.getItem(STORAGE_KEY) === "1";
-  } catch {
-    return false;
-  }
-}
-
-function writeStoredPreference(collapsed) {
-  try {
-    localStorage.setItem(STORAGE_KEY, collapsed ? "1" : "0");
-  } catch {
-    /* ignore (private mode / storage disabled) */
-  }
-}
 
 export function initSidebarToggle() {
   const nav = document.getElementById("side-nav");
@@ -33,9 +16,8 @@ export function initSidebarToggle() {
     toggle.setAttribute("aria-label", toggle.title);
   }
 
-  function setCollapsed(collapsed, { persist = true } = {}) {
+  function setCollapsed(collapsed) {
     apply(collapsed);
-    if (persist) writeStoredPreference(collapsed);
   }
 
   toggle.addEventListener("click", () => {
@@ -48,7 +30,7 @@ export function initSidebarToggle() {
     if (event.matches) {
       apply(false);
     } else {
-      apply(readStoredPreference());
+      apply(false);
     }
   }
   mobile.addEventListener("change", syncWithViewport);
