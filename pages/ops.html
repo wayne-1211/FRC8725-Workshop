@@ -1,0 +1,38 @@
+<div class="page-head">
+  <div>
+    <h1 class="page-title">作業</h1>
+    <p class="page-sub">記錄使用的工具與材料，或建立備料單整理需要的材料。</p>
+  </div>
+</div>
+<div class="ops-tabs" role="tablist" aria-label="作業分頁">
+  <button type="button" class="ops-tab" id="tab-boxes" role="tab" aria-selected="false" aria-controls="panel-boxes"
+    data-tab="boxes">使用</button>
+  <button type="button" class="ops-tab" id="tab-prep" role="tab" aria-selected="false" aria-controls="panel-prep"
+    data-tab="prep">備料</button>
+</div>
+
+<section id="panel-boxes" class="ops-panel" role="tabpanel" aria-labelledby="tab-boxes" hidden>
+  <div class="ops-toolbar">
+    <div class="search-box"><span class="ico" aria-hidden="true">⌕</span><input id="box-search" type="search"
+        placeholder="搜尋使用者…" aria-label="搜尋使用者" autocomplete="off"></div>
+    <button type="button" class="btn btn-primary" id="add-box-btn"><span class="ico-svg" style="width:15px;height:15px;--icon-url:url('../images/icons/plus.svg')" aria-hidden="true"></span>新增盒子</button>
+  </div>
+  <div id="box-list" class="ops-list">
+    <div class="state-block">
+      <div class="spinner"></div>載入盒子…
+    </div>
+  </div>
+</section>
+
+<section id="panel-prep" class="ops-panel" role="tabpanel" aria-labelledby="tab-prep" hidden>
+  <div class="ops-toolbar">
+    <div class="search-box"><span class="ico" aria-hidden="true">⌕</span><input id="prep-search" type="search"
+        placeholder="搜尋備料單名稱…" aria-label="搜尋備料單" autocomplete="off"></div>
+    <button type="button" class="btn btn-primary" id="add-prep-btn"><span class="ico-svg" style="width:15px;height:15px;--icon-url:url('../images/icons/plus.svg')" aria-hidden="true"></span>新增備料單</button>
+  </div>
+  <div id="prep-list" class="ops-list">
+    <div class="state-block">
+      <div class="spinner"></div>載入備料單…
+    </div>
+  </div>
+</section>

@@ -1,7 +1,5 @@
 rules_version = '2';
 
-// Workshop Manager rules v3: item access, pending requests and admin user management.
-
 service cloud.firestore {
   match /databases/{database}/documents {
     function isSignedIn() {
@@ -29,7 +27,8 @@ service cloud.firestore {
     }
 
     match /authorizedUsers/{uid} {
-      allow read: if (isSignedIn() && request.auth.uid == uid) || isAdmin();
+      // 自己（授權確認流程）或任何已授權使用者（作業頁的使用者候選名單）可讀
+      allow read: if (isSignedIn() && request.auth.uid == uid) || isAuthorized();
       allow create, update, delete: if isAdmin();
     }
 
@@ -46,6 +45,70 @@ service cloud.firestore {
 
     match /items/{itemId} {
       allow read, create, update, delete: if isAuthorized();
+    }
+
+    // 輕量快取版本：app 啟動時只讀這一份文件，版本不同才下載完整 items。
+    // 所有庫存寫入會在同一批次／交易中更新 items 時間戳版本。
+    match /system/cacheVersions {
+      allow read: if isAuthorized();
+      allow create, update: if isAuthorized()
+        && request.resource.data.keys().hasOnly(['items', 'updatedAt'])
+        && request.resource.data.items is string
+        && request.resource.data.updatedAt == request.time;
+      allow delete: if false;
+    }
+
+    match /usageBoxes/{boxId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'active'
+        && request.resource.data.items is list
+        && request.resource.data.items.size() == 0;
+      allow update: if isAuthorized()
+        // 建立者與建立時間為快照，不可被後續更新竄改
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status in ['active', 'closed'];
+      // 只能刪除空盒子；歷史 log 不受影響
+      allow delete: if isAuthorized() && resource.data.items.size() == 0;
+    }
+
+    match /prepOrders/{orderId} {
+      allow read: if isAuthorized();
+      allow create: if isAuthorized()
+        && request.resource.data.createdByUid == request.auth.uid
+        && request.resource.data.createdAt == request.time
+        && request.resource.data.status == 'draft';
+      allow update: if isAuthorized()
+        && request.resource.data.createdByUid == resource.data.createdByUid
+        && request.resource.data.createdAt == resource.data.createdAt
+        && request.resource.data.status in ['draft', 'prepared'];
+      // 刪除備料單不回補庫存、不影響 log（由前端流程保證回補要走明確操作）
+      allow delete: if isAuthorized();
+    }
+
+    match /activityLogs/{logId} {
+      // 稽核資料：只有 admin 可讀
+      allow read: if isAdmin();
+      // 授權使用者可在合法操作中建立自己的 log；
+      // 不可偽造操作者 uid 或時間，欄位集合固定。
+      allow create: if isAuthorized()
+        && request.resource.data.actorUid == request.auth.uid
+        && request.resource.data.at == request.time
+        && request.resource.data.action in ['take', 'return']
+        && request.resource.data.source in ['box', 'prep', 'direct']
+        && request.resource.data.quantity is int
+        && request.resource.data.quantity > 0
+        && request.resource.data.keys().hasOnly([
+          'action', 'source', 'actorUid', 'actorName', 'userName', 'userUid',
+          'itemId', 'itemName', 'itemCategory', 'quantity', 'unit',
+          'boxId', 'boxName', 'prepOrderId', 'prepOrderName', 'at'
+        ]);
+      // 管理員可由 Log 頁清空紀錄；既有紀錄仍不可修改。
+      allow update: if false;
+      allow delete: if isAdmin();
     }
 
     match /{document=**} {

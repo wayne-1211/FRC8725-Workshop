@@ -2,6 +2,7 @@
 
 import { FIREBASE_SDK_VERSION, isFirebaseConfigured } from "../core/firebase-config.js";
 import { getFirebaseApp, getFirebaseDb } from "../core/firebase-client.js";
+import { debugLog } from "../core/debug-mode.js";
 
 let auth = null;
 let authSdk = null;
@@ -16,6 +17,9 @@ async function initAuth() {
   const app = await getFirebaseApp();
   authSdk = await import(`https://www.gstatic.com/firebasejs/${FIREBASE_SDK_VERSION}/firebase-auth.js`);
   auth = authSdk.getAuth(app);
+  // Keep the session across reloads so a page refresh does not bounce back to login.
+  try { await authSdk.setPersistence(auth, authSdk.browserLocalPersistence); }
+  catch (error) { console.warn("無法設定登入持久化，改用預設。", error); }
   provider = new authSdk.GoogleAuthProvider();
   provider.setCustomParameters({ prompt: "select_account" });
   return auth;
@@ -25,11 +29,14 @@ async function handleRedirectResult() {
   const instance = await initAuth();
   if (redirectChecked) return null;
   redirectChecked = true;
-  return authSdk.getRedirectResult(instance);
-}
-
-function isMobileBrowser() {
-  return matchMedia("(max-width: 768px)").matches || /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  try {
+    return await authSdk.getRedirectResult(instance);
+  } catch (error) {
+    // A dropped redirect handshake (storage-partitioned mobile browsers) must not
+    // block auth init — onAuthStateChanged still resolves the current user.
+    console.warn("處理重新導向登入結果時發生問題（可忽略，將改用彈出視窗）。", error);
+    return null;
+  }
 }
 
 export function authErrorMessage(error) {
@@ -52,6 +59,7 @@ export function firestoreErrorMessage(error, authorization = false) {
     case "permission-denied": return authorization ? "目前帳號未被授權使用此系統。" : "目前帳號沒有資料存取權限。";
     case "unauthenticated": return "登入狀態已失效，請重新登入。";
     case "unavailable": return "Firebase 服務暫時無法使用。";
+    case "resource-exhausted": return "Firestore 讀寫配額暫時不足，已優先使用本機快取；請稍後再試。";
     case "failed-precondition": return "Firebase 資料庫尚未完成必要設定。";
     default: return authorization ? "無法載入授權資料。" : "無法載入 Firebase 資料。";
   }
@@ -59,11 +67,17 @@ export function firestoreErrorMessage(error, authorization = false) {
 
 export async function loginWithGoogle() {
   const instance = await initAuth();
-  if (isMobileBrowser()) return authSdk.signInWithRedirect(instance, provider);
+  // Popup first on every device. signInWithRedirect breaks on mobile browsers that
+  // partition storage (iOS Safari / in-app webviews) with
+  // "Unable to process request due to missing initial state", because the redirect
+  // handshake state kept in sessionStorage is dropped. Popup avoids that entirely.
   try {
     return await authSdk.signInWithPopup(instance, provider);
   } catch (error) {
-    if (error?.code === "auth/popup-blocked") {
+    const fallbackToRedirect = error?.code === "auth/popup-blocked"
+      || error?.code === "auth/operation-not-supported-in-environment"
+      || error?.code === "auth/cancelled-popup-request";
+    if (fallbackToRedirect) {
       await authSdk.signInWithRedirect(instance, provider);
       return null;
     }
@@ -98,6 +112,7 @@ export async function checkCurrentUserAuthorization() {
   const user = getCurrentUser();
   if (!user) return { authorized: false, role: null, profile: null };
   const { db, sdk } = await getFirebaseDb();
+  debugLog(`[Firestore 讀取] authorizedUsers/${user.uid}｜確認登入授權`);
   const snapshot = await sdk.getDoc(sdk.doc(db, "authorizedUsers", user.uid));
   if (!snapshot.exists() || snapshot.data()?.enabled !== true) {
     return { authorized: false, role: null, profile: null };

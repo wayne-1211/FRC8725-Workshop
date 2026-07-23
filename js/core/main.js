@@ -46,10 +46,27 @@ async function handleAuth(user) {
     const session = { user, ...authorization };
     initChrome(session);
     startRouter(session);
+    maybeExposeItemIdMigration();
   } catch (error) {
     console.error(error);
     await showLogin(user, false, "無法確認或建立授權資料，請稍後再試。");
   }
+}
+
+// 一次性工具：以 ?migrate-item-ids=1 開啟網站後，於主控台手動執行
+// window.migrateLegacyItemIds() 將舊版 item-<uuid> 物品 id 轉回 Firestore 原生格式。
+// 只掛載函式、不自動執行，避免誤觸；建議先以 { dryRun: true } 預覽。
+function maybeExposeItemIdMigration() {
+  try {
+    if (new URLSearchParams(location.search).get("migrate-item-ids") !== "1") return;
+  } catch { return; }
+  import("../services/migrate-item-ids.js").then((m) => {
+    window.migrateLegacyItemIds = m.migrateLegacyItemIds;
+    console.log(
+      "[migrate] 已就緒。先執行 `await migrateLegacyItemIds({ dryRun: true })` 預覽，" +
+      "確認後再執行 `await migrateLegacyItemIds()`。",
+    );
+  }).catch((error) => console.error("[migrate] 載入失敗：", error));
 }
 
 if (isDemoMode()) {

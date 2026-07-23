@@ -1,8 +1,9 @@
 // js/item-form.js — reusable add/edit item modal
 
 import { el, escapeHtml, hexToRgba, UNITS } from "../utils/utils.js";
+import { deriveToolStatus } from "../utils/item-logic.js";
 import { openModal, closeModal } from "./modal.js";
-import { getWorkshopMap, getStructureById, createItem, updateItem } from "../services/data-service.js";
+import { getAllAreas, getStructureById, createItem, updateItem } from "../services/data-service.js";
 import { initLabels, statusList, categoryList, tagList, tagChip } from "./labels.js";
 import { notify } from "./notifications.js";
 import { firestoreErrorMessage } from "../services/auth-service.js";
@@ -16,8 +17,9 @@ import { firestoreErrorMessage } from "../services/auth-service.js";
  */
 export async function openItemForm({ item = null, defaults = {}, onSaved } = {}) {
   await initLabels();
-  const map = await getWorkshopMap();
-  const areas = map.areas || [];
+  // The form is shared by every page, so its storage choices must include
+  // cabinets from every configured floor plan, not only workshop-map.json.
+  const areas = await getAllAreas();
   const isEdit = !!item;
   const data = normalizeItem(item, defaults);
 
@@ -120,7 +122,7 @@ export async function openItemForm({ item = null, defaults = {}, onSaved } = {})
     saveBtn.textContent = "儲存中…";
     try {
       const saved = isEdit
-        ? await updateItem(item.id, payload)
+        ? await updateItem(item.id, payload, item)
         : await createItem(payload);
       notify.success(isEdit ? "已更新物品" : "已新增物品");
       closeModal();
@@ -225,19 +227,9 @@ function buildFormHtml(areas, d, isEdit) {
     <div id="material-fields">
       <div class="form-row">
         <div class="field">
-          <label for="f-qty">大約數量</label>
+          <label for="f-qty">數量</label>
           <input id="f-qty" name="quantity" type="number" min="0" step="1" value="${escapeHtml(d.quantity)}" placeholder="例如：120">
           <div class="error-text" data-for="quantity"></div>
-        </div>
-        <div class="field">
-          <label for="f-unit">單位</label>
-          <select id="f-unit" name="unit">${unitOpts}</select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="field">
-          <label for="f-min">最低存量</label>
-          <input id="f-min" name="minimumQuantity" type="number" min="0" step="1" value="${escapeHtml(d.minimumQuantity)}" placeholder="低於此值時警示">
         </div>
         <div class="field">
           <label for="f-qmode">數量模式</label>
@@ -245,6 +237,16 @@ function buildFormHtml(areas, d, isEdit) {
             <option value="approximate" ${d.quantityMode === "approximate" ? "selected" : ""}>大約</option>
             <option value="exact" ${d.quantityMode === "exact" ? "selected" : ""}>精確</option>
           </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="field">
+          <label for="f-unit">單位</label>
+          <select id="f-unit" name="unit">${unitOpts}</select>
+        </div>
+        <div class="field">
+          <label for="f-min">最低存量</label>
+          <input id="f-min" name="minimumQuantity" type="number" min="0" step="1" value="${escapeHtml(d.minimumQuantity)}" placeholder="低於此值時警示">
         </div>
       </div>
     </div>
@@ -281,11 +283,12 @@ function collectPayload(form, tags) {
     imageUrl: get("imageUrl"),
   };
   if (category === "tool") {
-    payload.status = get("status") || "available";
     const q = get("toolQuantity");
     const total = get("totalQuantity");
     payload.totalQuantity = total === "" ? 0 : Number(total);
     payload.quantity = q === "" ? payload.totalQuantity : Number(q);
+    // 一般庫存狀態依數量自動推導（quantity < total → in-use）；特殊狀態維持使用者選擇。
+    payload.status = deriveToolStatus(get("status") || "available", payload.quantity, payload.totalQuantity);
     payload.unit = null;
     payload.minimumQuantity = null;
     payload.quantityMode = null;
