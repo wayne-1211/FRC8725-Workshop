@@ -51,11 +51,6 @@ function nextLocalVersionId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-function nextLocalItemId() {
-  if (globalThis.crypto?.randomUUID) return `item-${globalThis.crypto.randomUUID()}`;
-  return `item-${Date.now()}-${Math.random().toString(36).slice(2, 12)}`;
-}
-
 function itemCacheKey() {
   const uid = getCurrentUser()?.uid;
   // v2 invalidates snapshots created before mutation-aware cache handling.
@@ -335,7 +330,10 @@ export async function createItem(itemData) {
   }
 
   const version = nextLocalVersionId();
-  const created = { ...itemData, id: nextLocalItemId() };
+  // Use a Firestore-native document id (e.g. iGpGs4hk7kaZ4cd3G1Ra) rather than a
+  // client-invented "item-<uuid>" string, so the optimistic cache and the
+  // committed document share the same id the collection has always used.
+  const created = { ...itemData, id: await svc.fbNewItemId() };
   const fullKey = itemCacheKey();
   const segmentKey = itemSegmentKey(created.storageId);
   const previousFullRaw = fullKey ? localStorage.getItem(fullKey) : null;

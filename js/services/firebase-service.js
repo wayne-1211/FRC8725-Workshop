@@ -151,6 +151,16 @@ export async function fbGetItemById(itemId) {
   return snap.exists() ? mapDoc(snap) : null;
 }
 
+/**
+ * 產生 Firestore 原生文件 ID（例如 iGpGs4hk7kaZ4cd3G1Ra）。
+ * 純用戶端運算、不需連線往返，讓 data-service 可以先用同一組 ID 更新本機
+ * 樂觀快取，再以完全相同的 ID 提交 Firestore 文件。
+ */
+export async function fbNewItemId() {
+  await initFirebase();
+  return sdk.doc(sdk.collection(db, COLLECTION)).id;
+}
+
 export async function fbCreateItem(itemData, { itemId = "", version = "" } = {}) {
   await initFirebase();
   const payload = {
